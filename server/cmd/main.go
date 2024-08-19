@@ -16,12 +16,16 @@ func main() {
 		log.Println("Database connection established")
 	}
 
+	defer dbConn.Close()
+
 	userRep := user.NewRepository(dbConn.GetDB())
 	userSvc := user.NewService(userRep)
 	userHandler := user.NewHandler(userSvc)
 
 	hub := ws.NewHub()
 	wsHandler := ws.NewHandler(hub)
+
+	go hub.Run()
 
 	router.InitRouter(userHandler, wsHandler)
 	router.Start("0.0.0.0:8080")

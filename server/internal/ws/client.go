@@ -28,6 +28,7 @@ func (c *Client) writeMessage() {
 	for {
 		message, ok := <-c.Message
 		if !ok {
+			log.Printf("Message channel closed for client %s in room %s", c.ID, c.RoomID)
 			return
 		}
 
@@ -45,7 +46,7 @@ func (c *Client) readMessage(hub *Hub) {
 		_, m, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Print("error: %v", err)
+				log.Printf("error: %v", err)
 			}
 			break
 		}
@@ -56,6 +57,6 @@ func (c *Client) readMessage(hub *Hub) {
 			Username: c.Username,
 		}
 
-		hub.Broadcash <- msg
+		hub.Broadcast <- msg
 	}
 }

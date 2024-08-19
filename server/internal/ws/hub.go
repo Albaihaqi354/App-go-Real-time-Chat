@@ -1,5 +1,7 @@
 package ws
 
+import "log"
+
 type Room struct {
 	ID      string             `json:"id"`
 	Name    string             `json:"name"`
@@ -10,7 +12,7 @@ type Hub struct {
 	Rooms      map[string]*Room
 	Register   chan *Client
 	Unregister chan *Client
-	Broadcash  chan *Message
+	Broadcast  chan *Message
 }
 
 func NewHub() *Hub {
@@ -18,7 +20,7 @@ func NewHub() *Hub {
 		Rooms:      make(map[string]*Room),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
-		Broadcash:  make(chan *Message),
+		Broadcast:  make(chan *Message),
 	}
 }
 
@@ -28,32 +30,36 @@ func (h *Hub) Run() {
 		case cl := <-h.Register:
 			if _, ok := h.Rooms[cl.RoomID]; ok {
 				r := h.Rooms[cl.RoomID]
-
 				if _, ok := r.Clients[cl.ID]; !ok {
 					r.Clients[cl.ID] = cl
+					log.Printf("Client %s joined room %s", cl.ID, cl.RoomID)
 				}
+			} else {
+				log.Printf("Room %s not found", cl.RoomID)
 			}
 		case cl := <-h.Unregister:
 			if _, ok := h.Rooms[cl.RoomID]; ok {
 				if _, ok := h.Rooms[cl.RoomID].Clients[cl.ID]; ok {
-					if len(h.Rooms[cl.RoomID].Clients) != 0 {
-						h.Broadcash <- &Message{
+					delete(h.Rooms[cl.RoomID].Clients, cl.ID)
+					close(cl.Message)
+
+					if len(h.Rooms[cl.RoomID].Clients) > 0 {
+						h.Broadcast <- &Message{
 							Content:  "User left the chat",
 							RoomID:   cl.RoomID,
 							Username: cl.Username,
 						}
 					}
-
-					delete(h.Rooms[cl.RoomID].Clients, cl.ID)
-					close(cl.Message)
 				}
 			}
-		case m := <-h.Broadcash:
-			if _, ok := h.Rooms[m.RoomID]; ok {
-
-				for _, cl := range h.Rooms[m.RoomID].Clients {
+		case m := <-h.Broadcast:
+			if room, ok := h.Rooms[m.RoomID]; ok {
+				for _, cl := range room.Clients {
+					log.Printf("Broadcasting message to client %s in room %s", cl.ID, m.RoomID)
 					cl.Message <- m
 				}
+			} else {
+				log.Printf("Room %s not found for broadcasting", m.RoomID)
 			}
 		}
 	}

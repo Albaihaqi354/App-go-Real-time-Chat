@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -57,6 +58,12 @@ func (h *Handler) JoinRoom(c *gin.Context) {
 	clientID := c.Query("userId")
 	username := c.Query("username")
 
+	if roomID == "" || clientID == "" || username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing roomId, userId, or username"})
+		conn.Close()
+		return
+	}
+
 	cl := &Client{
 		Conn:     conn,
 		Message:  make(chan *Message, 10),
@@ -71,8 +78,12 @@ func (h *Handler) JoinRoom(c *gin.Context) {
 		Username: username,
 	}
 
+	log.Printf("Upgraded connection to WebSocket for client %s in room %s", clientID, roomID)
+
 	h.hub.Register <- cl
-	h.hub.Broadcash <- m
+	h.hub.Broadcast <- m
+
+	log.Println("Client registered and message broadcasted")
 
 	go cl.writeMessage()
 	cl.readMessage(h.hub)
@@ -94,4 +105,29 @@ func (h *Handler) GetRooms(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, rooms)
+}
+
+type ClientRes struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+func (h *Handler) GetClients(c *gin.Context) {
+	var clients []ClientRes
+	roomId := c.Param("roomId")
+
+	if _, ok := h.hub.Rooms[roomId]; !ok {
+		clients = make([]ClientRes, 0)
+		c.JSON(http.StatusOK, clients)
+		return
+	}
+
+	for _, c := range h.hub.Rooms[roomId].Clients {
+		clients = append(clients, ClientRes{
+			ID:       c.ID,
+			Username: c.Username,
+		})
+	}
+
+	c.JSON(http.StatusOK, clients)
 }
