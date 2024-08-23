@@ -1,12 +1,21 @@
-import { useState } from 'react'
+import { useState, useContext, useEffect } from 'react'
 import { API_URL } from '../../constants'
 import { useRouter } from 'next/router'
+import { AuthContext, UserInfo } from '@/modules/auth_provider'
 
 const index = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const { authenticated } = useContext(AuthContext)
     
   const router = useRouter()
+
+  useEffect(() => {
+    if (authenticated) {
+        router.push('/')
+        return
+    }
+  }, [authenticated])
 
   const submitHandler = async (e: React.SyntheticEvent) => {
     e.preventDefault()
@@ -20,7 +29,7 @@ const index = () => {
 
         const data = await res.json()
         if (res.ok) {
-            const user = {
+            const user: UserInfo = {
                 username: data.username,
                 id: data.id,
             }
