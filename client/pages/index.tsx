@@ -1,10 +1,68 @@
-import { useState } from 'react'
+import { useState, useEffect, useContext } from 'react'
+import { API_URL, WEBSOCKET_URL } from '@/constants'
+import { v4 as uuidv4 } from 'uuid'
+import { AuthContext } from '@/modules/auth_provider'
+import { WebSocketContext } from '@/modules/websocket_provider'
+import { useRouter } from 'next/router'
 
 const index = () => {
-  const [rooms, setRooms] = useState<{ id: string, name: string }[]> ([
-    { id: '1', name: 'room 1' },
-    { id: '2', name: 'room 2' },
-  ])
+    const [rooms, setRooms] = useState<{ id: string, name: string }[]> ([])
+    const [roomName, setRoomName] = useState('')
+    const { user } = useContext(AuthContext)
+    const { setConn } = useContext(WebSocketContext)
+
+    const router = useRouter()
+
+    const getRooms = async () => {
+        try {
+        const res = await fetch(`${API_URL}/ws/getRooms`, {
+            method: 'GET',
+        })
+
+        const data = await res.json()
+        if (res.ok) {
+            setRooms(data)
+        }
+      }   catch (err) {
+          console.log(err)
+      }
+    }
+
+    useEffect(() => {
+      getRooms()
+    }, [])
+
+    const submitHandler = async (e: React.SyntheticEvent) => {
+      e.preventDefault()
+
+      try {
+        setRoomName('')
+        const res = await fetch(`${API_URL}/ws/createRoom`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+              id: uuidv4(), 
+              name: roomName
+            }),
+        })
+
+      if (res.ok) {
+          getRooms()
+      }
+    }   catch (err) {
+        console.log(err)
+    }
+  }
+
+  const joinRoom = (roomsId: string) => {
+    const ws = new WebSocket(`${WEBSOCKET_URL}/ws/joinRoom/${roomsId}?userId=${user.id}&username=${user.username}`)
+    if (ws.OPEN) {
+      setConn(ws)
+      router.push('/app')
+      return
+    }
+  }
 
   return (
     <>
@@ -14,8 +72,10 @@ const index = () => {
             type="text"
             className='border border-grey p-2 rounded-md focus:outline-none focus:border-blue'
             placeholder='room name'
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
            />
-           <button className='bg-blue border text-white rounded-md p-2 md:ml-4'>
+           <button className='bg-blue border text-white rounded-md p-2 md:ml-4' onClick={submitHandler}>
             Create Room
            </button>
         </div>
@@ -32,7 +92,7 @@ const index = () => {
                   <div className='text-blue font-bold text-lg'>{room.name}</div>
                 </div>
                 <div className=''>
-                  <button className='px-4 text-white bg-blue rounded-md'>
+                  <button className='px-4 text-white bg-blue rounded-md' onClick={() => joinRoom(room.id)}>
                     Join
                   </button>
                 </div>
