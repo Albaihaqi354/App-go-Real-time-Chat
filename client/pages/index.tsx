@@ -56,7 +56,9 @@ const index = () => {
   }
 
   const joinRoom = (roomsId: string) => {
-    const ws = new WebSocket(`${WEBSOCKET_URL}/ws/joinRoom/${roomsId}?userId=${user.id}&username=${user.username}`)
+    const ws = new WebSocket(
+      `${WEBSOCKET_URL}/ws/joinRoom/${roomsId}?userId=${user.id}&username=${user.username}`
+    )
     if (ws.OPEN) {
       setConn(ws)
       router.push('/app')
