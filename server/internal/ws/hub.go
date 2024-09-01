@@ -55,7 +55,7 @@ func (h *Hub) Run() {
 		case m := <-h.Broadcast:
 			if room, ok := h.Rooms[m.RoomID]; ok {
 				for _, cl := range room.Clients {
-					log.Printf("Broadcasting message to client %s in room %s", cl.ID, m.RoomID)
+					log.Printf("Broadcating message to client %s in room %s", cl.ID, m.RoomID)
 					cl.Message <- m
 				}
 			} else {
